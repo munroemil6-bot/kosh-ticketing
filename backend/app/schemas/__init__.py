@@ -14,9 +14,12 @@ class UserSchema(Schema):
     first_name = fields.String(required=True, validate=validate.Length(min=1, max=50))
     last_name = fields.String(required=True, validate=validate.Length(min=1, max=50))
     phone = fields.String(validate=validate.Length(max=20))
-    role = fields.String(dump_only=True)
+    role = fields.Method("serialize_role", dump_only=True)
     is_active = fields.Boolean(dump_only=True)
     created_at = fields.DateTime(dump_only=True)
+
+    def serialize_role(self, user):
+        return user.role.value if hasattr(user, 'role') and getattr(user.role, 'value', None) else str(user.role)
 
     @validates('email')
     def validate_email(self, value):

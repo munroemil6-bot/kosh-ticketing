@@ -11,6 +11,7 @@ import RegisterPage from './pages/RegisterPage';
 import MyTicketsPage from './pages/MyTicketsPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
 import AdminDashboard from './components/admin/AdminDashboard';
+import AdminCreateEventPage from './pages/AdminCreateEventPage';
 import ProtectedRoute from './components/common/ProtectedRoute';
 const App = () => {
   return (
@@ -34,6 +35,11 @@ const App = () => {
           <Route path="/admin" element={
             <ProtectedRoute requireOrganizer>
               <AdminDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/events/create" element={
+            <ProtectedRoute requireOrganizer>
+              <AdminCreateEventPage />
             </ProtectedRoute>
           } />
         </Routes>

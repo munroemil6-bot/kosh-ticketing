@@ -80,6 +80,7 @@ export const adminAPI = {
   getEvents: (params = {}) => api.get('/admin/events', { params }),
   getEventStats: (id) => api.get(`/admin/events/${id}/stats`),
   getEventAttendees: (id) => api.get(`/admin/events/${id}/attendees`),
+  deleteEvent: (id) => api.delete(`/admin/events/${id}`),
 };
 
 export default api;

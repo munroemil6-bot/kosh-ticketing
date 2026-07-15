@@ -3,13 +3,13 @@
  * Organizer/Admin dashboard with stats, events, and management
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 import { adminAPI } from '../../services/api';
 import { 
   Calendar, Ticket, DollarSign, TrendingUp, 
-  Users, Eye, Plus, BarChart3, ArrowUpRight 
+  Users, Eye, Plus, Trash2, ArrowUpRight 
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { LoadingPage } from '../common/Loading';
@@ -33,9 +33,39 @@ const StatCard = ({ title, value, icon: Icon, trend, color }) => (
 );
 
 const AdminDashboard = () => {
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const queryClient = useQueryClient();
+
   const { data, isLoading, error } = useQuery('dashboard', adminAPI.getDashboard, {
     retry: 1,
   });
+
+  const { data: attendeesData, isLoading: isLoadingAttendees, error: attendeesError } = useQuery(
+    ['event-attendees', selectedEventId],
+    () => adminAPI.getEventAttendees(selectedEventId),
+    { enabled: !!selectedEventId, retry: 1 }
+  );
+
+  useEffect(() => {
+    const firstEventId = data?.data?.events_performance?.[0]?.id;
+    if (firstEventId && !selectedEventId) {
+      setSelectedEventId(String(firstEventId));
+    }
+  }, [data, selectedEventId]);
+
+  const handleDeleteEvent = async (eventId) => {
+    if (!window.confirm('Cancel this event?')) return;
+
+    try {
+      await adminAPI.deleteEvent(eventId);
+      queryClient.invalidateQueries('dashboard');
+      if (selectedEventId === String(eventId)) {
+        setSelectedEventId('');
+      }
+    } catch (err) {
+      alert('Unable to cancel event');
+    }
+  };
 
   if (isLoading) return <LoadingPage />;
   if (error) return (
@@ -52,6 +82,7 @@ const AdminDashboard = () => {
   const stats = data?.data?.stats || {};
   const recentOrders = data?.data?.recent_orders || [];
   const eventsPerformance = data?.data?.events_performance || [];
+  const attendees = attendeesData?.data?.attendees || [];
 
   return (
     <div className="min-h-screen bg-dark-900 pt-24 pb-12">
@@ -130,12 +161,21 @@ const AdminDashboard = () => {
                         {Math.round((event.tickets_sold / event.capacity) * 100)}%
                       </p>
                     </div>
-                    <Link
-                      to={`/admin/events/${event.id}`}
-                      className="p-2 hover:bg-white/5 rounded-lg transition-all"
-                    >
-                      <Eye className="w-4 h-4 text-gray-400" />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/admin/events/${event.id}`}
+                        className="p-2 hover:bg-white/5 rounded-lg transition-all"
+                      >
+                        <Eye className="w-4 h-4 text-gray-400" />
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="p-2 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Cancel event"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
                   </div>
                 ))}
 
@@ -150,7 +190,7 @@ const AdminDashboard = () => {
           </div>
 
           {/* Recent Orders */}
-          <div>
+          <div className="space-y-6">
             <div className="glass-card p-6">
               <h2 className="text-lg font-bold text-white mb-6">Recent Orders</h2>
               <div className="space-y-3">
@@ -179,6 +219,52 @@ const AdminDashboard = () => {
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-white">Buyer List</h2>
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="bg-dark-700 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200"
+                >
+                  {eventsPerformance.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {isLoadingAttendees ? (
+                <p className="text-sm text-gray-400">Loading buyer details...</p>
+              ) : attendeesError ? (
+                <p className="text-sm text-red-400">Unable to load buyer details</p>
+              ) : attendees.length > 0 ? (
+                <div className="space-y-3">
+                  {attendees.map((attendee) => (
+                    <div key={attendee.id} className="p-3 bg-dark-700/50 rounded-xl">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{attendee.first_name} {attendee.last_name}</p>
+                          <p className="text-xs text-gray-400">{attendee.email}</p>
+                          <p className="text-xs text-gray-500 mt-1">Buyer: {attendee.buyer_name || attendee.buyer_email || 'Guest'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-kosh-400">{attendee.ticket_tier_name}</p>
+                          <p className="text-xs text-gray-500">#{attendee.ticket_number}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No attendees yet</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

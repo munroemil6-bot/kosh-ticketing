@@ -3,20 +3,18 @@ Kosh Ticketing - Upload Routes
 Handles file uploads for event images
 """
 
-from flask import Blueprint, request, jsonify
-from werkzeug.utils import secure_filename
+from flask import request, jsonify
 import os
 import uuid
-
-uploads_bp = Blueprint('uploads', __name__)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@uploads_bp.route('/image', methods=['POST'])
+
 def upload_image():
     """Upload event image"""
     try:
@@ -30,7 +28,6 @@ def upload_image():
         if not allowed_file(file.filename):
             return jsonify({'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
 
-        # Check file size
         file.seek(0, os.SEEK_END)
         size = file.tell()
         file.seek(0)
@@ -38,12 +35,8 @@ def upload_image():
         if size > MAX_FILE_SIZE:
             return jsonify({'error': 'File too large. Max 5MB'}), 400
 
-        # Generate unique filename
         ext = file.filename.rsplit('.', 1)[1].lower()
         filename = f"{uuid.uuid4()}.{ext}"
-
-        # In production, upload to S3/Cloudinary
-        # For now, return mock URL
         mock_url = f"/uploads/{filename}"
 
         return jsonify({
@@ -54,3 +47,7 @@ def upload_image():
 
     except Exception as e:
         return jsonify({'error': 'Upload failed', 'details': str(e)}), 500
+
+
+def register_uploads_routes(app):
+    app.add_url_rule('/api/uploads/image', view_func=upload_image, methods=['POST'])

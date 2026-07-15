@@ -1,12 +1,21 @@
 import React from 'react';
+import { Link, Navigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
+import { useAuth } from '../context/AuthContext';
 import { ticketsAPI } from '../services/api';
 import TicketCard from '../components/user/TicketCard';
 import { LoadingPage } from '../components/common/Loading';
 import { Ticket, AlertCircle } from 'lucide-react';
 
 const MyTicketsPage = () => {
-  const { data, isLoading, error } = useQuery('my-tickets', ticketsAPI.getMyTickets);
+  const { user } = useAuth();
+  const { data, isLoading, error } = useQuery('my-tickets', ticketsAPI.getMyTickets, {
+    enabled: user?.role === 'customer',
+  });
+
+  if (user?.role !== 'customer') {
+    return <Navigate to="/admin" replace />;
+  }
 
   const tickets = data?.data?.tickets || [];
 
@@ -35,8 +44,8 @@ const MyTicketsPage = () => {
           <div className="glass-card p-12 text-center">
             <Ticket className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">No Tickets Yet</h3>
-            <p className="text-gray-400 mb-6">You haven't purchased any tickets yet.</p>
-            <a href="/events" className="btn-primary">Browse Events</a>
+            <p className="text-gray-400 mb-6">Your purchased tickets will appear here once checkout is complete.</p>
+            <Link to="/events" className="btn-primary">Buy Tickets</Link>
           </div>
         )}
       </div>

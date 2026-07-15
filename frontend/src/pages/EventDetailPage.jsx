@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
+import { ShoppingCart } from 'lucide-react';
 import { eventsAPI } from '../services/api';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import TicketSelector from '../components/events/TicketSelector';
 import EventCard from '../components/events/EventCard';
 import { LoadingPage } from '../components/common/Loading';
@@ -10,12 +12,13 @@ import {
   Calendar, MapPin, Clock, Share2, Heart,
   ArrowRight, AlertTriangle
 } from 'lucide-react';
-import { formatDateTime, formatTime, getCategoryConfig, getDaysUntil } from '../utils/helpers';
+import { formatCurrency, formatDateTime, formatTime, getCategoryConfig, getDaysUntil } from '../utils/helpers';
 
 const EventDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { setEvent, clearCart } = useCart();
+  const { setEvent, clearCart, totalTickets, tickets, subtotal, fees, total } = useCart();
+  const { isAuthenticated, user } = useAuth();
 
   const { data, isLoading } = useQuery(
     ['event', id],
@@ -46,6 +49,9 @@ const EventDetailPage = () => {
   const daysUntil = getDaysUntil(event.start_date);
 
   const handleContinueCheckout = () => {
+    if (!isAuthenticated || user?.role !== 'customer') {
+      return;
+    }
     navigate('/checkout');
   };
 
@@ -151,7 +157,29 @@ const EventDetailPage = () => {
 
           {/* Sidebar - Ticket Selection */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24">
+            <div className="sticky top-24 space-y-4">
+              {totalTickets > 0 && (
+                <div className="glass-card p-4 border border-kosh-500/20">
+                  <div className="flex items-center gap-2 mb-3 text-kosh-400">
+                    <ShoppingCart className="w-4 h-4" />
+                    <span className="font-semibold text-sm">Current cart</span>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-300">
+                    {tickets.map((ticket) => (
+                      <div key={ticket.tierId} className="flex items-center justify-between">
+                        <span>{ticket.tierName} × {ticket.quantity}</span>
+                        <span>{formatCurrency(ticket.price * ticket.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t border-white/10 mt-3 pt-3 text-sm text-gray-400 space-y-1">
+                    <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
+                    <div className="flex justify-between"><span>Fee</span><span>{formatCurrency(fees)}</span></div>
+                    <div className="flex justify-between font-semibold text-white"><span>Total</span><span>{formatCurrency(total)}</span></div>
+                  </div>
+                </div>
+              )}
+
               {event.is_sold_out ? (
                 <div className="glass-card p-6 text-center">
                   <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-3" />

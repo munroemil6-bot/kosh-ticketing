@@ -1,11 +1,17 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import CheckoutFlow from '../components/checkout/CheckoutFlow';
 import { ShoppingCart } from 'lucide-react';
 
 const CheckoutPage = () => {
   const { event, totalTickets } = useCart();
+  const { user, isAuthenticated } = useAuth();
+
+  if (!isAuthenticated || user?.role !== 'customer') {
+    return <Navigate to="/events" replace />;
+  }
 
   if (!event || totalTickets === 0) {
     return <Navigate to="/events" replace />;

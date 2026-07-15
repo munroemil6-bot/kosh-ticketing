@@ -3,7 +3,7 @@ Kosh Ticketing - Events Routes
 Handles event listing, filtering, and details
 """
 
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import or_, and_, func
 from datetime import datetime, timedelta
@@ -12,13 +12,12 @@ from app.models import Event, EventCategory, EventStatus, TicketTier, User, User
 from app.schemas import EventSchema, EventFilterSchema, EventCreateSchema, TicketTierSchema
 from app.utils import paginate, slugify
 
-events_bp = Blueprint('events', __name__)
 event_schema = EventSchema()
 events_schema = EventSchema(many=True)
 filter_schema = EventFilterSchema()
 create_schema = EventCreateSchema()
 
-@events_bp.route('', methods=['GET'])
+
 def get_events():
     """Get events with filtering, sorting, and pagination"""
     try:
@@ -93,7 +92,6 @@ def get_events():
         if sort_by == 'start_date':
             query = query.order_by(Event.start_date.asc() if sort_order == 'asc' else Event.start_date.desc())
         elif sort_by == 'price':
-            # Sort by lowest price (requires subquery)
             query = query.order_by(Event.start_date.asc())
         elif sort_by == 'popularity':
             query = query.order_by(Event.total_tickets_sold.desc())
@@ -122,7 +120,6 @@ def get_events():
         return jsonify({'error': 'Failed to fetch events', 'details': str(e)}), 500
 
 
-@events_bp.route('/featured', methods=['GET'])
 def get_featured_events():
     """Get featured events for homepage"""
     try:
@@ -140,7 +137,6 @@ def get_featured_events():
         return jsonify({'error': 'Failed to fetch featured events', 'details': str(e)}), 500
 
 
-@events_bp.route('/categories', methods=['GET'])
 def get_categories():
     """Get all event categories with counts"""
     try:
@@ -164,7 +160,6 @@ def get_categories():
         return jsonify({'error': 'Failed to fetch categories', 'details': str(e)}), 500
 
 
-@events_bp.route('/<int:event_id>', methods=['GET'])
 def get_event(event_id):
     """Get single event with ticket tiers"""
     try:
@@ -182,7 +177,6 @@ def get_event(event_id):
         return jsonify({'error': 'Failed to fetch event', 'details': str(e)}), 500
 
 
-@events_bp.route('', methods=['POST'])
 @jwt_required()
 def create_event():
     """Create a new event (organizer/admin only)"""
@@ -261,7 +255,6 @@ def create_event():
         return jsonify({'error': 'Failed to create event', 'details': str(e)}), 500
 
 
-@events_bp.route('/<int:event_id>', methods=['PUT'])
 @jwt_required()
 def update_event(event_id):
     """Update an event (organizer/admin only)"""
@@ -299,7 +292,6 @@ def update_event(event_id):
         return jsonify({'error': 'Update failed', 'details': str(e)}), 500
 
 
-@events_bp.route('/<int:event_id>/related', methods=['GET'])
 def get_related_events(event_id):
     """Get related events (same category or city)"""
     try:
@@ -322,3 +314,13 @@ def get_related_events(event_id):
 
     except Exception as e:
         return jsonify({'error': 'Failed to fetch related events', 'details': str(e)}), 500
+
+
+def register_events_routes(app):
+    app.add_url_rule('/api/events', view_func=get_events, methods=['GET'])
+    app.add_url_rule('/api/events/featured', view_func=get_featured_events, methods=['GET'])
+    app.add_url_rule('/api/events/categories', view_func=get_categories, methods=['GET'])
+    app.add_url_rule('/api/events/<int:event_id>', view_func=get_event, methods=['GET'])
+    app.add_url_rule('/api/events', view_func=create_event, methods=['POST'])
+    app.add_url_rule('/api/events/<int:event_id>', view_func=update_event, methods=['PUT'])
+    app.add_url_rule('/api/events/<int:event_id>/related', view_func=get_related_events, methods=['GET'])

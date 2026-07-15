@@ -4,13 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { Minus, Plus, Check, Star, AlertTriangle } from 'lucide-react';
+import { Minus, Plus, Check, Star, AlertTriangle, Lock, ShoppingCart } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 const TicketSelector = ({ event, onContinue }) => {
   const { tickets, updateQuantity, subtotal, fees, total, totalTickets } = useCart();
+  const { isAuthenticated, user } = useAuth();
   const [selectedTiers, setSelectedTiers] = useState({});
+  const canPurchase = isAuthenticated && user?.role === 'customer';
 
   const handleQuantityChange = (tier, change) => {
     const currentQty = selectedTiers[tier.id] || 0;
@@ -28,6 +31,20 @@ const TicketSelector = ({ event, onContinue }) => {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-bold text-white mb-4">Select Your Tickets</h3>
+
+      {!canPurchase && (
+        <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <div className="flex items-center gap-2 mb-2">
+            <Lock className="w-4 h-4" />
+            <span className="font-semibold">Ticket purchases are for signed-in customers only.</span>
+          </div>
+          <p className="text-amber-100/80">
+            {isAuthenticated
+              ? 'Organizer and admin accounts can manage events but cannot purchase tickets.'
+              : 'Please sign in as a customer to continue.'}
+          </p>
+        </div>
+      )}
 
       {event.ticket_tiers?.map((tier) => {
         const qty = getTierQuantity(tier.id);
@@ -107,7 +124,7 @@ const TicketSelector = ({ event, onContinue }) => {
                   <div className="flex items-center gap-2 mt-3">
                     <button
                       onClick={() => handleQuantityChange(tier, -1)}
-                      disabled={qty === 0}
+                      disabled={qty === 0 || !canPurchase}
                       className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
                       <Minus className="w-4 h-4" />
@@ -115,7 +132,7 @@ const TicketSelector = ({ event, onContinue }) => {
                     <span className="w-8 text-center font-semibold text-white">{qty}</span>
                     <button
                       onClick={() => handleQuantityChange(tier, 1)}
-                      disabled={qty >= tier.max_per_order || qty >= tier.tickets_available}
+                      disabled={!canPurchase || qty >= tier.max_per_order || qty >= tier.tickets_available}
                       className="w-8 h-8 flex items-center justify-center rounded-lg bg-kosh-500/20 hover:bg-kosh-500/30 text-kosh-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
                       <Plus className="w-4 h-4" />
@@ -130,7 +147,11 @@ const TicketSelector = ({ event, onContinue }) => {
 
       {/* Order Summary */}
       {totalTickets > 0 && (
-        <div className="glass-card p-4 space-y-2 animate-fade-in">
+        <div className="glass-card p-4 space-y-3 animate-fade-in border border-kosh-500/20">
+          <div className="flex items-center gap-2 text-kosh-400">
+            <ShoppingCart className="w-4 h-4" />
+            <span className="text-sm font-semibold">Your cart</span>
+          </div>
           <div className="flex justify-between text-sm text-gray-400">
             <span>Subtotal ({totalTickets} tickets)</span>
             <span>{formatCurrency(subtotal)}</span>
@@ -146,7 +167,8 @@ const TicketSelector = ({ event, onContinue }) => {
 
           <button
             onClick={onContinue}
-            className="w-full btn-primary mt-3"
+            disabled={!canPurchase}
+            className="w-full btn-primary mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continue to Checkout
           </button>

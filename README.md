@@ -14,11 +14,11 @@ A full-stack event ticketing application inspired by modern platforms like Madfu
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python3 -m venv venv
+source venv/bin/activate  
 pip install -r requirements.txt
-python seed_data.py       # Seed sample data
-python run.py             # Start server on http://localhost:5000
+python3 seed_data.py       
+python3 run.py             # Start server on http://localhost:5000
 ```
 
 ### Frontend

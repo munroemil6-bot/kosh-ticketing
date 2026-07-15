@@ -3,19 +3,18 @@ Kosh Ticketing - Authentication Routes
 Handles user registration, login, and profile management
 """
 
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from app.models import User, UserRole
 from app.schemas import UserSchema, UserLoginSchema
 
-auth_bp = Blueprint('auth', __name__)
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
 login_schema = UserLoginSchema()
 
-@auth_bp.route('/register', methods=['POST'])
+
 def register():
     """Register a new user"""
     try:
@@ -46,7 +45,7 @@ def register():
         db.session.commit()
 
         # Generate token
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
 
         return jsonify({
             'message': 'Registration successful',
@@ -59,7 +58,6 @@ def register():
         return jsonify({'error': 'Registration failed', 'details': str(e)}), 500
 
 
-@auth_bp.route('/login', methods=['POST'])
 def login():
     """User login"""
     try:
@@ -81,7 +79,7 @@ def login():
             return jsonify({'error': 'Account is deactivated'}), 403
 
         # Generate token
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
 
         return jsonify({
             'message': 'Login successful',
@@ -93,12 +91,11 @@ def login():
         return jsonify({'error': 'Login failed', 'details': str(e)}), 500
 
 
-@auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_profile():
     """Get current user profile"""
     try:
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         user = User.query.get(user_id)
 
         if not user:
@@ -110,12 +107,11 @@ def get_profile():
         return jsonify({'error': 'Failed to fetch profile', 'details': str(e)}), 500
 
 
-@auth_bp.route('/me', methods=['PUT'])
 @jwt_required()
 def update_profile():
     """Update user profile"""
     try:
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         user = User.query.get(user_id)
 
         if not user:
@@ -141,3 +137,10 @@ def update_profile():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Update failed', 'details': str(e)}), 500
+
+
+def register_auth_routes(app):
+    app.add_url_rule('/api/auth/register', view_func=register, methods=['POST'])
+    app.add_url_rule('/api/auth/login', view_func=login, methods=['POST'])
+    app.add_url_rule('/api/auth/me', view_func=get_profile, methods=['GET'])
+    app.add_url_rule('/api/auth/me', view_func=update_profile, methods=['PUT'])

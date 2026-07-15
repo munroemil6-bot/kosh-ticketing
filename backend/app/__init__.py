@@ -17,6 +17,7 @@ migrate = Migrate()
 cors = CORS()
 jwt = JWTManager()
 
+
 def create_app(config_name=None):
     """Application factory pattern for creating Flask app instances."""
     load_dotenv()
@@ -45,20 +46,20 @@ def create_app(config_name=None):
         }
     })
 
-    # Register blueprints
-    from app.routes.auth import auth_bp
-    from app.routes.events import events_bp
-    from app.routes.orders import orders_bp
-    from app.routes.tickets import tickets_bp
-    from app.routes.admin import admin_bp
-    from app.routes.uploads import uploads_bp
+    # Register routes directly on the app instance
+    from app.routes.auth import register_auth_routes
+    from app.routes.events import register_events_routes
+    from app.routes.orders import register_orders_routes
+    from app.routes.tickets import register_tickets_routes
+    from app.routes.admin import register_admin_routes
+    from app.routes.uploads import register_uploads_routes
 
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(events_bp, url_prefix='/api/events')
-    app.register_blueprint(orders_bp, url_prefix='/api/orders')
-    app.register_blueprint(tickets_bp, url_prefix='/api/tickets')
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(uploads_bp, url_prefix='/api/uploads')
+    register_auth_routes(app)
+    register_events_routes(app)
+    register_orders_routes(app)
+    register_tickets_routes(app)
+    register_admin_routes(app)
+    register_uploads_routes(app)
 
     # Error handlers
     @app.errorhandler(404)

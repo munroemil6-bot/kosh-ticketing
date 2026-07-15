@@ -3,13 +3,13 @@ Kosh Ticketing - Orders Routes
 Handles ticket reservation, checkout, and payment processing
 """
 
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import request, jsonify
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from datetime import datetime, timedelta
 from app import db
 from app.models import (
     Order, OrderItem, Attendee, TicketTier, Event, User,
-    OrderStatus, EventStatus
+    OrderStatus, EventStatus, UserRole
 )
 from app.schemas import OrderCreateSchema, OrderSchema, PaymentSchema, AttendeeCreateSchema
 from app.utils import (
@@ -17,16 +17,43 @@ from app.utils import (
     calculate_order_fees, reserve_tickets, confirm_tickets, release_tickets
 )
 
-orders_bp = Blueprint('orders', __name__)
 order_schema = OrderSchema()
 orders_schema = OrderSchema(many=True)
 create_schema = OrderCreateSchema()
 payment_schema = PaymentSchema()
 
-@orders_bp.route('', methods=['POST'])
+
+def _get_current_user_id():
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return None
+
+    try:
+        identity = get_jwt_identity()
+    except Exception:
+        return None
+
+    try:
+        return int(identity)
+    except (TypeError, ValueError):
+        return None
+
+
+@jwt_required()
 def create_order():
     """Create a new order (reserves tickets)"""
     try:
+        current_user_id = _get_current_user_id()
+        if current_user_id is None:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        if user.role != UserRole.CUSTOMER:
+            return jsonify({'error': 'Only customers can purchase tickets'}), 403
+
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
@@ -54,7 +81,7 @@ def create_order():
         for ticket_selection in data['tickets']:
             tier = TicketTier.query.get(ticket_selection['ticket_tier_id'])
             if not tier or tier.event_id != event.id:
-                return jsonify({'error': f'Invalid ticket tier for this event'}), 400
+                return jsonify({'error': 'Invalid ticket tier for this event'}), 400
 
             if not tier.is_on_sale:
                 return jsonify({'error': f'Tickets for "{tier.name}" are not available for purchase'}), 400
@@ -78,7 +105,7 @@ def create_order():
         # Create order
         order = Order(
             order_number=generate_order_number(),
-            user_id=get_jwt_identity() if request.headers.get('Authorization') else None,
+            user_id=user.id,
             guest_email=data.get('guest_email'),
             guest_phone=data.get('guest_phone'),
             status=OrderStatus.PENDING,
@@ -88,11 +115,11 @@ def create_order():
             discount=0,
             total=total,
             currency='USD',
-            expires_at=datetime.utcnow() + timedelta(minutes=15)  # 15-min reservation
+            expires_at=datetime.utcnow() + timedelta(minutes=15)
         )
 
         db.session.add(order)
-        db.session.flush()  # Get order.id
+        db.session.flush()
 
         # Create order items
         for item_data in order_items_data:
@@ -123,7 +150,6 @@ def create_order():
         return jsonify({'error': 'Failed to create order', 'details': str(e)}), 500
 
 
-@orders_bp.route('/<int:order_id>', methods=['GET'])
 def get_order(order_id):
     """Get order details"""
     try:
@@ -139,7 +165,6 @@ def get_order(order_id):
         return jsonify({'error': 'Failed to fetch order', 'details': str(e)}), 500
 
 
-@orders_bp.route('/<int:order_id>/attendees', methods=['POST'])
 def add_attendees(order_id):
     """Add attendee details to order"""
     try:
@@ -203,7 +228,6 @@ def add_attendees(order_id):
         return jsonify({'error': 'Failed to add attendees', 'details': str(e)}), 500
 
 
-@orders_bp.route('/<int:order_id>/pay', methods=['POST'])
 def process_payment(order_id):
     """Process mock payment and confirm order"""
     try:
@@ -215,7 +239,6 @@ def process_payment(order_id):
             return jsonify({'error': 'Order cannot be paid'}), 400
 
         if order.expires_at and order.expires_at < datetime.utcnow():
-            # Release reserved tickets
             release_tickets(order.id)
             order.status = OrderStatus.CANCELLED
             db.session.commit()
@@ -230,24 +253,19 @@ def process_payment(order_id):
         if errors:
             return jsonify({'error': 'Validation failed', 'details': errors}), 400
 
-        # Mock payment processing
-        # In production, integrate with Stripe, PayPal, etc.
-        payment_success = True  # Always succeed in mock
+        payment_success = True
 
         if payment_success:
-            # Confirm tickets (move from reserved to sold)
             success, message = confirm_tickets(order.id)
             if not success:
                 return jsonify({'error': message}), 500
 
-            # Update order
             order.status = OrderStatus.PAID
             order.payment_status = 'completed'
             order.payment_method = data.get('payment_method')
             order.payment_reference = f"MOCK-{generate_order_number()}"
             order.paid_at = datetime.utcnow()
 
-            # Update event status if sold out
             event = Event.query.get(order.items[0].ticket_tier.event_id)
             if event and event.is_sold_out:
                 event.status = EventStatus.SOLD_OUT
@@ -266,7 +284,6 @@ def process_payment(order_id):
         return jsonify({'error': 'Payment processing failed', 'details': str(e)}), 500
 
 
-@orders_bp.route('/<int:order_id>/cancel', methods=['POST'])
 def cancel_order(order_id):
     """Cancel order and release tickets"""
     try:
@@ -277,7 +294,6 @@ def cancel_order(order_id):
         if order.status not in [OrderStatus.PENDING, OrderStatus.CONFIRMED]:
             return jsonify({'error': 'Order cannot be cancelled'}), 400
 
-        # Release tickets
         release_tickets(order.id)
 
         order.status = OrderStatus.CANCELLED
@@ -291,3 +307,11 @@ def cancel_order(order_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to cancel order', 'details': str(e)}), 500
+
+
+def register_orders_routes(app):
+    app.add_url_rule('/api/orders', view_func=create_order, methods=['POST'])
+    app.add_url_rule('/api/orders/<int:order_id>', view_func=get_order, methods=['GET'])
+    app.add_url_rule('/api/orders/<int:order_id>/attendees', view_func=add_attendees, methods=['POST'])
+    app.add_url_rule('/api/orders/<int:order_id>/pay', view_func=process_payment, methods=['POST'])
+    app.add_url_rule('/api/orders/<int:order_id>/cancel', view_func=cancel_order, methods=['POST'])

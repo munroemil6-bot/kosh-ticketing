@@ -16,6 +16,7 @@ from 'lucide-react';
 const Navbar = () => {
   const { user, isAuthenticated, logout, isOrganizer } = useAuth();
   const { totalTickets } = useCart();
+  const isCustomer = user?.role === 'customer';
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -124,10 +125,12 @@ const Navbar = () => {
                       <p className="text-xs text-gray-400">{user?.email}</p>
                     </div>
                     <div className="p-1">
-                      <Link to="/my-tickets" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-all">
-                        <Ticket className="w-4 h-4" />
-                        My Tickets
-                      </Link>
+                      {isCustomer && (
+                        <Link to="/my-tickets" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-all">
+                          <Ticket className="w-4 h-4" />
+                          My Tickets
+                        </Link>
+                      )}
                       {isOrganizer && (
                         <Link to="/admin" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-all">
                           <LayoutDashboard className="w-4 h-4" />

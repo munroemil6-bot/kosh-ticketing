@@ -23,7 +23,7 @@ def seed_database():
 
         # Create users
         admin = User(
-            email="admin@koshticketing.com",
+            email="admin@gmail.com",
             password_hash=generate_password_hash("admin123"),
             first_name="Admin",
             last_name="User",
@@ -31,7 +31,7 @@ def seed_database():
         )
 
         organizer = User(
-            email="organizer@koshticketing.com",
+            email="organizer@gmail.com",
             password_hash=generate_password_hash("organizer123"),
             first_name="Event",
             last_name="Organizer",
@@ -39,7 +39,7 @@ def seed_database():
         )
 
         customer = User(
-            email="customer@koshticketing.com",
+            email="customer@gmail.com",
             password_hash=generate_password_hash("customer123"),
             first_name="John",
             last_name="Doe",
@@ -323,9 +323,9 @@ def seed_database():
         print(f"✅ Seeded {len(events_data)} events with ticket tiers")
         print(f"✅ Created users: admin, organizer, customer")
         print("\n🔑 Login credentials:")
-        print("   Admin: admin@koshticketing.com / admin123")
-        print("   Organizer: organizer@koshticketing.com / organizer123")
-        print("   Customer: customer@koshticketing.com / customer123")
+        print("   Admin: admin@gmail.com / admin123")
+        print("   Organizer: organizer@gmail.com / organizer123")
+        print("   Customer: customer@gmail.com / customer123")
 
 if __name__ == '__main__':
     seed_database()
