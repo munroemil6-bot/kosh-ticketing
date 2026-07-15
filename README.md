@@ -33,9 +33,9 @@ npm start                 # Start dev server on http://localhost:3000
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@koshticketing.com | admin123 |
-| Organizer | organizer@koshticketing.com | organizer123 |
-| Customer | customer@koshticketing.com | customer123 |
+| Admin | admin@gmail.com | admin123 |
+| Organizer | organizer@gmail.com | organizer123 |
+| Customer | customer@gmail.com | customer123 |
 
 ## Features
 
